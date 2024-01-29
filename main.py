@@ -4,8 +4,10 @@ import math
 import pandas as pd
 
 def snr_to_noise_level(snr_dB):
-    noise_l = math.sqrt(1 / (10 ** (snr_dB / 10)))
-    return noise_l
+    snr_db = 10 ** (snr_db / 10)
+    noise_std = 1 / np.sqrt(2 * snr_db)
+    return noise_std
+    
 
 def add_awgn_noise(sentence, noise_l):
     """
