@@ -48,53 +48,45 @@ def remove_stopwords(s):
     return final_list
 
 
-def process_text(sentence_original, compressed):
-    sentences = normalize(sentence_original)
-    sentences = sentences.strip().split('\n')
-    sentences_transmit = []
-    if (compressed == True):    
-        for i in range(len(sentences)):
-            if len(sentences[i]) > 0:
-              sentences_transmit.append(remove_stopwords(sentences[i]))
-              sentences_transmit[-1] = remove_space_before_punctuation(sentences_transmit[-1])
-              sentences_transmit[-1] = remove_vowels(sentences_transmit[-1])
-        return sentences_transmit
-    
-    else:
-        for i in range(len(sentences)):
-            if len(sentences[i]) > 0:
-              sentences_transmit.append(sentences[i]) 
-              sentences_transmit[-1] = remove_space_before_punctuation(sentences_transmit[-1])
-        return sentences_transmit
+def process_text(sentence_original): 
+    sentence_transmit = remove_stopwords(sentence_original)
+    sentence_transmit = remove_space_before_punctuation(sentence_transmit)
+    sentence_transmit = remove_vowels(sentence_transmit)
+    return sentence_transmit
                                                   
 
 sentence = "Sarah is in her car, driving through morning traffic to reach her office. She works at a marketing firm, and her days are usually busy. Her work involves analyzing data, creating marketing strategies, and coordinating teams. Her mornings are often filled with meetings and brainstorm sessions."
-print(process_text(sentence, True))
-print(process_text(sentence, False))
+sentence = normalize(sentence)
+print("initial normalization: ", sentence)
+print("processed text: ", process_text(sentence))
 
 path = r"C:\Users\gabri\OneDrive - Universidade do Porto\Desktop\en"
 files = [f for f in os.listdir(path) if f.endswith('.txt')]
 
 df = pd.DataFrame(columns = ['original', 'processed'])
 
-for ind in range(1):
+for ind in range(500):
     file_path = os.path.join(path, files[ind])
     with open(file_path, 'r', encoding='utf-8') as file:
       data = file.read()
-    # data = re.sub(r'\d+\.\d+', replace_dot_with_comma, data)
-    # data = data.replace(".", ". ")
-    df.loc[ind, 'original'] = process_text(data, False)
-    df.loc[ind, 'processed'] = process_text(data, True)
-    # print(len(df.loc[ind, 'original']))
-    # print(len(df.loc[ind, 'processed']))
+    data = normalize(data)
+    data = data.strip().split('\n')
+    for d in range(len(data)):
+        if len(data[d]) > 0:
+            df.loc[ind+d, 'original'] = data[d]
+            df.loc[ind+d, 'processed'] = process_text(data[d])
 
+# df.to_csv("processed_translation.csv", encoding='utf-8', index=False)
 
-df.to_csv("processed_translation", encoding='utf-8', index=False)
-compression = 100 * (1 - sum(len(i) for i in df.loc[ind, 'processed']) / 
-                      sum(len(i) for i in df.loc[ind, 'original']))
+sum_compressed = 0
+sum_original = 0
+
+for i in df.index:
+    sum_compressed += len(df.loc[i, 'processed'])
+    sum_original += len(df.loc[i, 'original'])
+    
+compression = 100 * (1 - sum_compressed / sum_original)
 compression
-
-# dataset = pd.read_csv('e1.txt', error_bad_lines=False, engine="python")
 
 # print(dataset.head())
 # dataset_hf = Dataset.from_pandas(dataset)
