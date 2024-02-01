@@ -1,0 +1,72 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Jan 29 10:34:59 2024
+
+@author: gabri
+"""
+import pandas as pd
+from datasets import Dataset, DatasetDict
+from trl import SFTTrainer
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig, AutoTokenizer
+from peft import LoraConfig
+
+file_path = "processed_translation.csv"
+
+data = pd.read_csv(file_path)
+data = data.assign(text='')
+for i in data.index:
+  s = f"### Human: Reconstruct the sentences: '{data.loc[i, 'processed']}'. ### Assistant: {data.loc[i, 'original']}"
+  data.loc[i, 'text'] = s
+    
+dataset = Dataset.from_pandas(data)
+
+# 90% train, 10% test+validation
+train_test = dataset.train_test_split(test_size=0.3)
+
+# Split the 10% test+validation set in half test, half validation
+valid_test = train_test['test'].train_test_split(test_size=0.5)
+
+# gather everyone if you want to have a single DatasetDict
+train_valid_test_dataset = DatasetDict({
+    'train': train_test['train'],
+    'validation': valid_test['train'],
+    'test': valid_test['test']
+})
+
+
+model_name = "ybelkada/falcon-7b-sharded-bf16"
+
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,
+    bnb_4bit_quant_type="nf4",
+    bnb_4bit_compute_dtype=torch.float16,
+)
+
+model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    quantization_config=bnb_config,
+    trust_remote_code=True
+)
+model.config.use_cache = False
+
+tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+tokenizer.pad_token = tokenizer.eos_token
+
+lora_alpha = 16
+lora_dropout = 0.1
+lora_r = 64
+
+peft_config = LoraConfig(
+    lora_alpha=lora_alpha,
+    lora_dropout=lora_dropout,
+    r=lora_r,
+    bias="none",
+    task_type="CAUSAL_LM",
+    target_modules=[
+        "query_key_value",
+        "dense",
+        "dense_h_to_4h",
+        "dense_4h_to_h",
+    ]
+)
