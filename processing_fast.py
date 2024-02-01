@@ -11,17 +11,11 @@ Created on Mon Jan 29 10:34:59 2024
 
 @author: gabriella
 """
-import nltk
-import spacy
 import re
 import pandas as pd
 from w3lib.html import remove_tags
-import unicodedata
+from unidecode import unidecode
 import os
-
-nltk.download('stopwords')
-from nltk.corpus import stopwords
-nlp = spacy.load('en_core_web_sm')
 
 
 def remove_space_before_punctuation(input_string):
@@ -35,10 +29,9 @@ def remove_vowels(word):
 
 
 def normalize(s):
-    s = ''.join(c for c in unicodedata.normalize('NFD', s)
-                   if unicodedata.category(c) != 'Mn')
-    s = remove_tags(s)
     s = s.lower()
+    s = ''.join(unidecode(s))
+    s = remove_tags(s)
     return s
 
 def remove_stopwords(s):
@@ -64,38 +57,26 @@ path = r"C:\Users\gabri\OneDrive - Universidade do Porto\Desktop\en"
 files = [f for f in os.listdir(path) if f.endswith('.txt')]
 
 df = pd.DataFrame(columns = ['original', 'processed'])
+sum_compressed = 0
+sum_original = 0
 
-for ind in range(500):
+count = 0
+for ind in range(50):
     file_path = os.path.join(path, files[ind])
     with open(file_path, 'r', encoding='utf-8') as file:
       data = file.read()
     data = normalize(data)
     data = data.strip().split('\n')
+    print(ind)
     for d in range(len(data)):
         if len(data[d]) > 0:
-            df.loc[ind+d, 'original'] = data[d]
-            df.loc[ind+d, 'processed'] = process_text(data[d])
+            df.loc[count, 'original'] = data[d]
+            sum_original += len(data[d])
+            df.loc[count, 'processed'] = process_text(data[d])
+            sum_compressed += len(df.loc[count, 'processed'])
+            count += 1
 
-# df.to_csv("processed_translation.csv", encoding='utf-8', index=False)
-
-sum_compressed = 0
-sum_original = 0
-
-for i in df.index:
-    sum_compressed += len(df.loc[i, 'processed'])
-    sum_original += len(df.loc[i, 'original'])
+df.to_csv("processed_translation.csv", encoding='utf-8', index=False)
     
 compression = 100 * (1 - sum_compressed / sum_original)
 compression
-
-# print(dataset.head())
-# dataset_hf = Dataset.from_pandas(dataset)
-# train_test = dataset_hf.train_test_split(test_size=0.3)
-
-# valid_test = train_test['test'].train_test_split(test_size=0.5)
-
-# train_valid_test_dataset = DatasetDict({
-#     'train': train_test['train'],
-#     'validation': valid_test['train'],
-#     'test': valid_test['test']
-# })
